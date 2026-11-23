@@ -1,4 +1,5 @@
 import type { OrderStatus, OrderType, Prisma } from "@prisma/client";
+import { parseCustomPayload } from "@/lib/custom-payload";
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   NEW: "Nowe",
@@ -32,19 +33,6 @@ export function formatOrderIdShort(id: string, length = 8): string {
   return `${id.slice(0, length)}…`;
 }
 
-type CustomPayloadFields = {
-  description?: string;
-  brandName?: string;
-  modelName?: string;
-};
-
-function asCustomFields(value: Prisma.JsonValue | null | undefined): CustomPayloadFields {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return {};
-  }
-  return value as CustomPayloadFields;
-}
-
 function shortenText(text: string, max = 72): string {
   const trimmed = text.trim().replace(/\s+/g, " ");
   if (trimmed.length <= max) return trimmed;
@@ -65,7 +53,7 @@ export type OrderTitle = {
 /** Sensowna etykieta na listach zamówień (bez ID w tytule). */
 export function formatOrderListTitle(order: OrderTitleInput): OrderTitle {
   if (order.type === "CUSTOM") {
-    const payload = asCustomFields(order.customPayload);
+    const payload = parseCustomPayload(order.customPayload);
     const bits = [
       payload.brandName,
       payload.modelName,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 type PartThumbProps = {
   src?: string | null;
@@ -9,12 +9,9 @@ type PartThumbProps = {
 };
 
 export function PartThumb({ src, alt = "", className = "" }: PartThumbProps) {
-  const [failed, setFailed] = useState(false);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
 
-  useEffect(() => {
-    setFailed(false);
-  }, [src]);
-
+  const failed = Boolean(src) && failedSrc === src;
   const showImage = Boolean(src) && !failed;
 
   return (
@@ -28,7 +25,7 @@ export function PartThumb({ src, alt = "", className = "" }: PartThumbProps) {
           src={src!}
           alt={alt}
           loading="lazy"
-          onError={() => setFailed(true)}
+          onError={() => setFailedSrc(src ?? null)}
         />
       ) : (
         <span>Brak zdjęcia</span>

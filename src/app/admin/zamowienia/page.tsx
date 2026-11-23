@@ -5,6 +5,7 @@ import { OrdersTabs, resolveOrdersTab } from "@/components/orders-tabs";
 import { PartThumb } from "@/components/part-thumb";
 import { StatusBadge } from "@/components/status-badge";
 import { formatPricePln } from "@/lib/catalog-types";
+import { parseCustomPayload } from "@/lib/custom-payload";
 import {
   formatOrderDate,
   formatOrderIdShort,
@@ -12,31 +13,10 @@ import {
   formatOrderType,
 } from "@/lib/order-labels";
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@prisma/client";
 
 type AdminOrdersPageProps = {
   searchParams: Promise<{ tab?: string }>;
 };
-
-type CustomPayload = {
-  brandName?: string;
-  modelName?: string;
-  description?: string;
-  complexity?: number;
-  material?: string;
-  volumeCm3?: number;
-  infill?: number;
-  quality?: string;
-  finish?: string;
-  estimatedPrice?: number;
-};
-
-function asPayload(value: Prisma.JsonValue | null): CustomPayload {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return {};
-  }
-  return value as CustomPayload;
-}
 
 export default async function AdminOrdersPage({
   searchParams,
@@ -94,7 +74,7 @@ export default async function AdminOrdersPage({
           ) : (
             <div className="stack">
               {visible.map((order) => {
-                const payload = asPayload(order.customPayload);
+                const payload = parseCustomPayload(order.customPayload);
                 const isCustom = order.type === "CUSTOM";
                 const label = formatOrderListTitle(order);
                 return (

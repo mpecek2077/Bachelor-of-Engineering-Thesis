@@ -107,7 +107,6 @@ export function Configurator({ brands }: ConfiguratorProps) {
       imageUrl: part.imageUrl,
     });
     setAddedToast({ partName: part.name });
-    resetFlow();
   }
 
   if (brands.length === 0) {
@@ -129,14 +128,21 @@ export function Configurator({ brands }: ConfiguratorProps) {
         </div>
       )}
 
-      <ol className="config-steps" aria-label="Kroki konfiguracji">
-        <li className={brandId ? "done" : "active"}>1. Marka</li>
-        <li className={modelId ? "done" : brandId ? "active" : ""}>2. Model</li>
-        <li className={generationId ? "done" : modelId ? "active" : ""}>
-          3. Generacja
-        </li>
-        <li className={generationId ? "active" : ""}>4. Część</li>
-      </ol>
+      <div className="config-steps-bar">
+        <ol className="config-steps" aria-label="Kroki konfiguracji">
+          <li className={brandId ? "done" : "active"}>1. Marka</li>
+          <li className={modelId ? "done" : brandId ? "active" : ""}>2. Model</li>
+          <li className={generationId ? "done" : modelId ? "active" : ""}>
+            3. Generacja
+          </li>
+          <li className={generationId ? "active" : ""}>4. Część</li>
+        </ol>
+        {brandId && (
+          <button type="button" className="btn-ghost" onClick={resetFlow}>
+            Zmień pojazd
+          </button>
+        )}
+      </div>
 
       <div className="panel config-panel">
         <h2>Marka</h2>

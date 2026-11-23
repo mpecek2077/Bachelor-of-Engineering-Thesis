@@ -2,7 +2,10 @@
 
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { saveCustomModelFile } from "@/lib/custom-model-upload";
+import {
+  removeCustomModelFile,
+  saveCustomModelFile,
+} from "@/lib/custom-model-upload";
 import { prisma } from "@/lib/prisma";
 import {
   calculateCustomQuote,
@@ -62,14 +65,6 @@ export async function submitCustomQuoteAction(
     return { error: parsed.error.issues[0]?.message ?? "Błędne dane formularza" };
   }
 
-  const modelFileEntry = formData.get("modelFile");
-  const modelFile =
-    modelFileEntry instanceof File ? modelFileEntry : null;
-  const upload = await saveCustomModelFile(modelFile);
-  if (upload.error) {
-    return { error: upload.error };
-  }
-
   const model = await prisma.model.findFirst({
     where: {
       id: parsed.data.modelId,
@@ -80,6 +75,14 @@ export async function submitCustomQuoteAction(
 
   if (!model) {
     return { error: "Nieprawidłowa marka lub model." };
+  }
+
+  const modelFileEntry = formData.get("modelFile");
+  const modelFile =
+    modelFileEntry instanceof File ? modelFileEntry : null;
+  const upload = await saveCustomModelFile(modelFile);
+  if (upload.error) {
+    return { error: upload.error };
   }
 
   const quote = calculateCustomQuote({
@@ -113,16 +116,23 @@ export async function submitCustomQuoteAction(
       : {}),
   };
 
-  const order = await prisma.order.create({
-    data: {
-      userId: session.user.id,
-      type: "CUSTOM",
-      status: "NEW",
-      totalPln: quote.estimatedPrice,
-      customPayload: payload,
-    },
-    select: { id: true },
-  });
+  try {
+    const order = await prisma.order.create({
+      data: {
+        userId: session.user.id,
+        type: "CUSTOM",
+        status: "NEW",
+        totalPln: quote.estimatedPrice,
+        customPayload: payload,
+      },
+      select: { id: true },
+    });
 
-  return { orderId: order.id };
+    return { orderId: order.id };
+  } catch {
+    if (upload.saved) {
+      await removeCustomModelFile(upload.saved.modelFilePath);
+    }
+    return { error: "Nie udało się zapisać wyceny. Spróbuj ponownie." };
+  }
 }

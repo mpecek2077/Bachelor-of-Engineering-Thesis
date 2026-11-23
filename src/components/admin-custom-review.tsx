@@ -7,6 +7,7 @@ import {
   type AdminCustomState,
 } from "@/lib/admin-custom-actions";
 import { formatPricePln } from "@/lib/catalog-types";
+import type { CustomPayload } from "@/lib/custom-payload";
 import {
   COMPLEXITY_LABELS,
   FINISH_LABELS,
@@ -18,21 +19,7 @@ import {
   type Quality,
 } from "@/lib/pricing";
 
-export type CustomPayloadView = {
-  brandName?: string;
-  modelName?: string;
-  description?: string;
-  complexity?: number;
-  material?: string;
-  volumeCm3?: number;
-  infill?: number;
-  quality?: string;
-  finish?: string;
-  estimatedPrice?: number;
-  modelFileName?: string;
-  modelFilePath?: string;
-  modelFileSize?: number;
-};
+export type CustomPayloadView = CustomPayload;
 
 function formatBytes(size?: number): string {
   if (!size || size <= 0) return "";

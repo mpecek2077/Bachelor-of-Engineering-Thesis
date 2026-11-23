@@ -17,18 +17,18 @@ export function PartModelViewer({
   className = "",
 }: PartModelViewerProps) {
   const viewerRef = useRef<HTMLElement | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const failed = failedSrc === src;
 
   useEffect(() => {
     void import("@google/model-viewer");
   }, []);
 
   useEffect(() => {
-    setFailed(false);
     const el = viewerRef.current;
     if (!el) return;
 
-    const onError = () => setFailed(true);
+    const onError = () => setFailedSrc(src);
     el.addEventListener("error", onError);
     return () => el.removeEventListener("error", onError);
   }, [src]);

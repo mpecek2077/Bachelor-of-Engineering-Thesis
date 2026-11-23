@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import type { Prisma } from "@prisma/client";
 import { PartThumb } from "@/components/part-thumb";
 import { StatusBadge } from "@/components/status-badge";
 import { auth } from "@/lib/auth";
 import { formatPricePln } from "@/lib/catalog-types";
+import { parseCustomPayload } from "@/lib/custom-payload";
 import {
   formatOrderDate,
   formatOrderListTitle,
@@ -24,29 +24,6 @@ import { prisma } from "@/lib/prisma";
 type OrderPageProps = {
   params: Promise<{ id: string }>;
 };
-
-type CustomPayload = {
-  brandName?: string;
-  modelName?: string;
-  description?: string;
-  complexity?: number;
-  material?: string;
-  volumeCm3?: number;
-  infill?: number;
-  quality?: string;
-  finish?: string;
-  estimatedPrice?: number;
-  modelFileName?: string;
-  modelFilePath?: string;
-  modelFileSize?: number;
-};
-
-function asPayload(value: Prisma.JsonValue | null): CustomPayload {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return {};
-  }
-  return value as CustomPayload;
-}
 
 export default async function OrderPage({ params }: OrderPageProps) {
   const session = await auth();
@@ -75,7 +52,7 @@ export default async function OrderPage({ params }: OrderPageProps) {
     notFound();
   }
 
-  const payload = asPayload(order.customPayload);
+  const payload = parseCustomPayload(order.customPayload);
   const label = formatOrderListTitle(order);
 
   return (

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AdminActionForm } from "@/components/admin-action-form";
 import { AdminPartForm } from "@/components/admin-part-form";
-import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import {
   archivePartAction,
   deletePartAction,
@@ -75,30 +75,28 @@ export default async function AdminEditPartPage({ params }: EditPartPageProps) {
               albo tylko zarchiwizować.
             </p>
             <div className="actions">
-              <form action={deletePartAction}>
-                <input type="hidden" name="id" value={part.id} />
-                <ConfirmSubmitButton
-                  className="btn btn-danger"
-                  confirmMessage={`Na pewno trwale usunąć „${part.name}”? Tej operacji nie cofniesz.`}
-                >
-                  Usuń na stałe
-                </ConfirmSubmitButton>
-              </form>
+              <AdminActionForm
+                id={part.id}
+                action={deletePartAction}
+                label="Usuń na stałe"
+                className="btn btn-danger"
+                confirmMessage={`Na pewno trwale usunąć „${part.name}”? Tej operacji nie cofniesz.`}
+              />
               {!archived && (
-                <form action={archivePartAction}>
-                  <input type="hidden" name="id" value={part.id} />
-                  <button type="submit" className="btn btn-secondary">
-                    Archiwizuj
-                  </button>
-                </form>
+                <AdminActionForm
+                  id={part.id}
+                  action={archivePartAction}
+                  label="Archiwizuj"
+                  className="btn btn-secondary"
+                />
               )}
               {archived && (
-                <form action={restorePartAction}>
-                  <input type="hidden" name="id" value={part.id} />
-                  <button type="submit" className="btn">
-                    Przywróć
-                  </button>
-                </form>
+                <AdminActionForm
+                  id={part.id}
+                  action={restorePartAction}
+                  label="Przywróć"
+                  className="btn"
+                />
               )}
             </div>
           </>
@@ -110,19 +108,19 @@ export default async function AdminEditPartPage({ params }: EditPartPageProps) {
               konfiguratorze).
             </p>
             {archived ? (
-              <form action={restorePartAction}>
-                <input type="hidden" name="id" value={part.id} />
-                <button type="submit" className="btn">
-                  Przywróć część
-                </button>
-              </form>
+              <AdminActionForm
+                id={part.id}
+                action={restorePartAction}
+                label="Przywróć część"
+                className="btn"
+              />
             ) : (
-              <form action={archivePartAction}>
-                <input type="hidden" name="id" value={part.id} />
-                <button type="submit" className="btn btn-secondary">
-                  Archiwizuj część
-                </button>
-              </form>
+              <AdminActionForm
+                id={part.id}
+                action={archivePartAction}
+                label="Archiwizuj część"
+                className="btn btn-secondary"
+              />
             )}
             <p className="muted" style={{ marginTop: "0.75rem" }}>
               <button type="button" className="btn btn-danger" disabled>

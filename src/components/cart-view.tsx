@@ -14,8 +14,15 @@ type CartViewProps = {
 
 export function CartView({ isLoggedIn }: CartViewProps) {
   const router = useRouter();
-  const { items, ready, totalPln, setQuantity, removeItem, clearCart } =
-    useCart();
+  const {
+    items,
+    ready,
+    totalPln,
+    setQuantity,
+    removeItem,
+    syncPrices,
+    clearCart,
+  } = useCart();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -32,8 +39,13 @@ export function CartView({ isLoggedIn }: CartViewProps) {
         items: items.map((item) => ({
           partId: item.partId,
           quantity: item.quantity,
+          expectedPricePln: item.pricePln,
         })),
       });
+
+      if (result.updatedPrices) {
+        syncPrices(result.updatedPrices);
+      }
 
       if (result.error || !result.orderId) {
         setError(result.error ?? "Nie udało się złożyć zamówienia.");
@@ -106,7 +118,10 @@ export function CartView({ isLoggedIn }: CartViewProps) {
                     max={99}
                     value={item.quantity}
                     onChange={(event) =>
-                      setQuantity(item.partId, Number(event.target.value) || 1)
+                      setQuantity(
+                        item.partId,
+                        Math.min(99, Math.max(1, Number(event.target.value) || 1)),
+                      )
                     }
                   />
                 </label>

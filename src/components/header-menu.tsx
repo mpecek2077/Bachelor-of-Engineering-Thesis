@@ -19,25 +19,22 @@ export function HeaderMenu({
   logoutAction,
 }: HeaderMenuProps) {
   const pathname = usePathname() || "/";
-  const [open, setOpen] = useState(false);
+  const [openedPath, setOpenedPath] = useState<string | null>(null);
+  const open = openedPath === pathname;
   const panelId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
 
   useEffect(() => {
     if (!open) return;
 
     function onPointerDown(event: MouseEvent) {
       if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
+        setOpenedPath(null);
       }
     }
 
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") setOpenedPath(null);
     }
 
     document.addEventListener("mousedown", onPointerDown);
@@ -79,7 +76,9 @@ export function HeaderMenu({
           className="menu-toggle"
           aria-expanded={open}
           aria-controls={panelId}
-          onClick={() => setOpen((value) => !value)}
+          onClick={() =>
+            setOpenedPath((current) => (current === pathname ? null : pathname))
+          }
         >
           Menu
         </button>

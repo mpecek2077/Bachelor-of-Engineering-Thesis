@@ -4,9 +4,12 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+const MAX_ITEM_QUANTITY = 99;
+
 const cartItemSchema = z.object({
   partId: z.string().min(1),
-  quantity: z.number().int().min(1).max(99),
+  quantity: z.number().int().min(1).max(MAX_ITEM_QUANTITY),
+  expectedPricePln: z.number().positive().optional(),
 });
 
 const placeOrderSchema = z.object({
@@ -16,6 +19,7 @@ const placeOrderSchema = z.object({
 export type PlaceOrderState = {
   error?: string;
   orderId?: string;
+  updatedPrices?: Record<string, number>;
 };
 
 function toPrice(value: { toString(): string } | number): number {
@@ -39,16 +43,23 @@ export async function placeOrderAction(
 
   // Scal duplikaty partId (gdyby client wysłał dwa razy to samo)
   const quantityByPartId = new Map<string, number>();
+  const expectedPriceByPartId = new Map<string, number>();
   for (const item of parsed.data.items) {
-    quantityByPartId.set(
-      item.partId,
-      (quantityByPartId.get(item.partId) ?? 0) + item.quantity,
-    );
+    const nextQuantity = (quantityByPartId.get(item.partId) ?? 0) + item.quantity;
+    if (nextQuantity > MAX_ITEM_QUANTITY) {
+      return {
+        error: `Maksymalna ilość jednej części w zamówieniu to ${MAX_ITEM_QUANTITY} szt.`,
+      };
+    }
+    quantityByPartId.set(item.partId, nextQuantity);
+    if (item.expectedPricePln !== undefined) {
+      expectedPriceByPartId.set(item.partId, item.expectedPricePln);
+    }
   }
 
   const partIds = [...quantityByPartId.keys()];
   const parts = await prisma.part.findMany({
-    where: { id: { in: partIds } },
+    where: { id: { in: partIds }, archivedAt: null },
     select: { id: true, pricePln: true, name: true },
   });
 
@@ -56,7 +67,26 @@ export async function placeOrderAction(
     const found = new Set(parts.map((part) => part.id));
     const missing = partIds.filter((id) => !found.has(id));
     return {
-      error: `Część niedostępna w katalogu (id: ${missing[0]}). Odśwież koszyk i spróbuj ponownie.`,
+      error: `Część jest niedostępna lub została zarchiwizowana (id: ${missing[0]}). Usuń ją z koszyka i spróbuj ponownie.`,
+    };
+  }
+
+  const updatedPrices: Record<string, number> = {};
+  let priceChanged = false;
+  for (const part of parts) {
+    const unitPrice = toPrice(part.pricePln);
+    updatedPrices[part.id] = unitPrice;
+    const expected = expectedPriceByPartId.get(part.id);
+    if (expected !== undefined && Math.abs(expected - unitPrice) > 0.005) {
+      priceChanged = true;
+    }
+  }
+
+  if (priceChanged) {
+    return {
+      error:
+        "Ceny części w katalogu uległy zmianie. Zaktualizowaliśmy koszyk - sprawdź nową sumę i złóż zamówienie ponownie.",
+      updatedPrices,
     };
   }
 
@@ -71,7 +101,9 @@ export async function placeOrderAction(
     };
   });
 
-  const totalPln = lines.reduce((sum, line) => sum + line.lineTotal, 0);
+  const totalPln =
+    Math.round(lines.reduce((sum, line) => sum + line.lineTotal, 0) * 100) /
+    100;
 
   const order = await prisma.order.create({
     data: {

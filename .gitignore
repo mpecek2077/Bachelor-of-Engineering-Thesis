@@ -45,10 +45,10 @@ next-env.d.ts
 /src/generated/prisma
 
 # uploaded custom 3D models (keep folder via .gitkeep)
-/public/uploads/custom/*
-!/public/uploads/custom/.gitkeep
+/uploads/custom/*
+!/uploads/custom/.gitkeep
 
-# AI / agent working notes (not for supervisor clone)
+# Lokalne notatki robocze i narzedzia deweloperskie
 AGENTS.md
 *-status.md
 etap-*-status.md

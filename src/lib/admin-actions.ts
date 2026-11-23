@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { OrderStatus } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { slugify } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
+import { isSafeAssetUrl, slugify } from "@/lib/validation";
 
 export type AdminActionState = {
   error?: string;
@@ -27,12 +27,8 @@ const assetUrlSchema = (label: string) =>
     .trim()
     .optional()
     .refine(
-      (value) =>
-        !value ||
-        value.startsWith("/") ||
-        value.startsWith("http://") ||
-        value.startsWith("https://"),
-      `${label}: ścieżka lokalna (/…) lub http(s)`,
+      isSafeAssetUrl,
+      `${label}: ścieżka lokalna (/… bez //) lub http(s)`,
     );
 
 const partSchema = z.object({
@@ -184,66 +180,113 @@ export async function updatePartAction(
   return { success: "Zapisano zmiany." };
 }
 
-export async function archivePartAction(formData: FormData): Promise<void> {
+export async function archivePartAction(
+  _prev: AdminActionState,
+  formData: FormData,
+): Promise<AdminActionState> {
   if (!(await assertAdmin())) {
-    throw new Error("Brak uprawnień administratora.");
+    return { error: "Brak uprawnień administratora." };
   }
 
   const id = String(formData.get("id") ?? "");
   if (!id) {
-    throw new Error("Brak ID części.");
+    return { error: "Brak ID części." };
   }
 
-  await prisma.part.update({
-    where: { id },
-    data: { archivedAt: new Date() },
-  });
-
-  revalidatePath("/admin");
-  revalidatePath("/admin/czesci");
-  revalidatePath("/konfigurator");
-}
-
-export async function restorePartAction(formData: FormData): Promise<void> {
-  if (!(await assertAdmin())) {
-    throw new Error("Brak uprawnień administratora.");
+  try {
+    await prisma.part.update({
+      where: { id },
+      data: { archivedAt: new Date() },
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      return { error: "Część nie istnieje." };
+    }
+    return { error: "Nie udało się zarchiwizować części." };
   }
-
-  const id = String(formData.get("id") ?? "");
-  if (!id) {
-    throw new Error("Brak ID części.");
-  }
-
-  await prisma.part.update({
-    where: { id },
-    data: { archivedAt: null },
-  });
 
   revalidatePath("/admin");
   revalidatePath("/admin/czesci");
   revalidatePath(`/admin/czesci/${id}`);
   revalidatePath("/konfigurator");
+  return { success: "Część została zarchiwizowana." };
 }
 
-/** Twarde usunięcie tylko gdy część nie występuje w żadnym OrderItem. */
-export async function deletePartAction(formData: FormData): Promise<void> {
+export async function restorePartAction(
+  _prev: AdminActionState,
+  formData: FormData,
+): Promise<AdminActionState> {
   if (!(await assertAdmin())) {
-    throw new Error("Brak uprawnień administratora.");
+    return { error: "Brak uprawnień administratora." };
   }
 
   const id = String(formData.get("id") ?? "");
   if (!id) {
-    throw new Error("Brak ID części.");
+    return { error: "Brak ID części." };
+  }
+
+  try {
+    await prisma.part.update({
+      where: { id },
+      data: { archivedAt: null },
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      return { error: "Część nie istnieje." };
+    }
+    return { error: "Nie udało się przywrócić części." };
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/czesci");
+  revalidatePath(`/admin/czesci/${id}`);
+  revalidatePath("/konfigurator");
+  return { success: "Część została przywrócona." };
+}
+
+/** Twarde usunięcie tylko gdy część nie występuje w żadnym OrderItem. */
+export async function deletePartAction(
+  _prev: AdminActionState,
+  formData: FormData,
+): Promise<AdminActionState> {
+  if (!(await assertAdmin())) {
+    return { error: "Brak uprawnień administratora." };
+  }
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) {
+    return { error: "Brak ID części." };
   }
 
   const usedCount = await prisma.orderItem.count({ where: { partId: id } });
   if (usedCount > 0) {
-    throw new Error(
-      "Część jest użyta w zamówieniach - możesz tylko archiwizować.",
-    );
+    return {
+      error: "Część jest użyta w zamówieniach - możesz ją tylko zarchiwizować.",
+    };
   }
 
-  await prisma.part.delete({ where: { id } });
+  try {
+    await prisma.part.delete({ where: { id } });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2025") {
+        return { error: "Część nie istnieje." };
+      }
+      if (error.code === "P2003") {
+        return {
+          error:
+            "Część jest użyta w zamówieniach - możesz ją tylko zarchiwizować.",
+        };
+      }
+    }
+    return { error: "Nie udało się usunąć części." };
+  }
 
   revalidatePath("/admin");
   revalidatePath("/admin/czesci");
@@ -251,13 +294,19 @@ export async function deletePartAction(formData: FormData): Promise<void> {
   redirect("/admin/czesci");
 }
 
-const statusSchema = z.nativeEnum(OrderStatus);
+const statusSchema = z.enum([
+  "NEW",
+  "IN_PROGRESS",
+  "COMPLETED",
+  "REJECTED",
+] as const);
 
 export async function updateOrderStatusAction(
+  _prev: AdminActionState,
   formData: FormData,
-): Promise<void> {
+): Promise<AdminActionState> {
   if (!(await assertAdmin())) {
-    throw new Error("Brak uprawnień administratora.");
+    return { error: "Brak uprawnień administratora." };
   }
 
   const id = String(formData.get("id") ?? "");
@@ -265,21 +314,26 @@ export async function updateOrderStatusAction(
   const parsed = statusSchema.safeParse(statusRaw);
 
   if (!id || !parsed.success) {
-    throw new Error("Nieprawidłowy status lub ID zamówienia.");
+    return { error: "Nieprawidłowy status lub ID zamówienia." };
   }
 
   const order = await prisma.order.findUnique({ where: { id } });
   if (!order) {
-    throw new Error("Zamówienie nie istnieje.");
+    return { error: "Zamówienie nie istnieje." };
   }
 
-  await prisma.order.update({
-    where: { id },
-    data: { status: parsed.data },
-  });
+  try {
+    await prisma.order.update({
+      where: { id },
+      data: { status: parsed.data },
+    });
+  } catch {
+    return { error: "Nie udało się zaktualizować statusu." };
+  }
 
   revalidatePath("/admin");
   revalidatePath("/admin/zamowienia");
   revalidatePath(`/zamowienie/${id}`);
   revalidatePath("/zamowienia");
+  return { success: "Status zapisany." };
 }

@@ -1,12 +1,12 @@
 import Link from "next/link";
+import { AdminActionForm } from "@/components/admin-action-form";
+import { PartThumb } from "@/components/part-thumb";
 import {
   archivePartAction,
   deletePartAction,
   restorePartAction,
 } from "@/lib/admin-actions";
 import { formatPricePln } from "@/lib/catalog-types";
-import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { PartThumb } from "@/components/part-thumb";
 import { prisma } from "@/lib/prisma";
 
 export default async function AdminPartsPage() {
@@ -80,30 +80,28 @@ export default async function AdminPartsPage() {
                       Edytuj
                     </Link>
                     {archived ? (
-                      <form action={restorePartAction}>
-                        <input type="hidden" name="id" value={part.id} />
-                        <button type="submit" className="btn-ghost">
-                          Przywróć
-                        </button>
-                      </form>
+                      <AdminActionForm
+                        id={part.id}
+                        action={restorePartAction}
+                        label="Przywróć"
+                        className="btn-ghost"
+                      />
                     ) : (
-                      <form action={archivePartAction}>
-                        <input type="hidden" name="id" value={part.id} />
-                        <button type="submit" className="btn-ghost">
-                          Archiwizuj
-                        </button>
-                      </form>
+                      <AdminActionForm
+                        id={part.id}
+                        action={archivePartAction}
+                        label="Archiwizuj"
+                        className="btn-ghost"
+                      />
                     )}
                     {canHardDelete ? (
-                      <form action={deletePartAction}>
-                        <input type="hidden" name="id" value={part.id} />
-                        <ConfirmSubmitButton
-                          className="btn-ghost danger-text"
-                          confirmMessage={`Usunąć trwale „${part.name}”?`}
-                        >
-                          Usuń
-                        </ConfirmSubmitButton>
-                      </form>
+                      <AdminActionForm
+                        id={part.id}
+                        action={deletePartAction}
+                        label="Usuń"
+                        className="btn-ghost danger-text"
+                        confirmMessage={`Usunąć trwale „${part.name}”?`}
+                      />
                     ) : (
                       <span
                         className="muted"

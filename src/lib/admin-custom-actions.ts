@@ -69,6 +69,7 @@ export async function approveCustomOrderAction(
     },
   });
 
+  revalidatePath("/admin");
   revalidatePath("/admin/zamowienia");
   revalidatePath(`/zamowienie/${order.id}`);
   revalidatePath("/zamowienia");
@@ -111,6 +112,7 @@ export async function rejectCustomOrderAction(
     },
   });
 
+  revalidatePath("/admin");
   revalidatePath("/admin/zamowienia");
   revalidatePath(`/zamowienie/${order.id}`);
   revalidatePath("/zamowienia");
