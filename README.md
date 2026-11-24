@@ -1,136 +1,122 @@
-# FLYDES Platform
+# FLYDES — 3D-Printed Automotive Parts Platform (B.Eng. Thesis)
 
-Aplikacja webowa do konfiguracji oraz zamawiania personalizowanych części samochodowych (lotki / spoilery, druk 3D), zrealizowana w ramach pracy inżynierskiej.
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel-000000?logo=vercel)](https://praca-inzynierska-gamma.vercel.app/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**Stos technologiczny:** Next.js (App Router) + TypeScript + PostgreSQL + Prisma + Auth.js (NextAuth v5).
+Full-stack e-commerce and B2B platform for configuring, pricing, and ordering custom 3D-printed automotive parts (spoilers / aerodynamic components), built as a **Bachelor of Engineering thesis** at Cracow University of Technology.
 
----
+**Live Demo:** [praca-inzynierska-gamma.vercel.app](https://praca-inzynierska-gamma.vercel.app/)
 
-## Wymagania
+## Architecture
 
-- **Node.js** 20+
-- **npm**
-- **Docker Desktop** (lokalny PostgreSQL przez `docker compose`)
+```mermaid
+flowchart LR
+    Client["Next.js App Router UI<br/>(3D Model Viewer + Configurator)"] --> API["Next.js Route Handlers<br/>(Auth.js v5 / Zod Validation)"]
+    API --> Prisma["Prisma ORM<br/>(Migrations & Seeding)"]
+    Prisma --> DB[("PostgreSQL<br/>(Docker local / Neon prod)")]
+    API --> Files["Validated 3D Uploads<br/>(STL / OBJ / 3MF)"]
+```
 
----
+## Key Features
 
-## Uruchomienie lokalne
+- **Step-by-Step Vehicle Configurator:** Guided selection (`Brand → Model → Generation → Part`) with an interactive **3D preview** powered by `@google/model-viewer`.
+- **Cart & Server-Validated Checkout:** Client-side cart (`localStorage`) with authenticated checkout that re-verifies part availability (`archivedAt: null`) and current prices directly against PostgreSQL.
+- **Custom 3D Print Quote Calculator:** Instant pricing estimator with optional 3D geometry upload (`STL`, `OBJ`, `3MF`), content validation, storage outside `public/` (`uploads/custom/`), and authorized downloads via `/api/uploads/custom/[filename]`.
+- **Admin Dashboard (`/admin`):** Catalog management (create, edit, soft-archive, safe delete), order status workflow (`NEW → IN_PROGRESS → COMPLETED / REJECTED`), and custom quote approval/rejection with price adjustments and notes.
+- **Automated Tests & Seeding:** Unit/smoke tests (`node:test` + `tsx`), reproducible Prisma migrations, and database seeding.
+
+## Tech Stack
+
+- **Framework & Language:** Next.js 16 (App Router), React 19, TypeScript
+- **Database & ORM:** PostgreSQL, Prisma 6
+- **Auth & Validation:** Auth.js (NextAuth v5 Credentials), Zod, bcryptjs
+- **3D Visualization:** `@google/model-viewer`
+- **DevOps & Deployment:** Docker Compose (local PostgreSQL), Vercel + Neon (production)
+
+## Local Setup
+
+### Prerequisites
+- Node.js 20+ & npm
+- Docker Desktop (for local PostgreSQL)
+
+### Run Locally
 
 ```bash
-# 1. Zależności
+# 1. Install dependencies
 npm install
 
-# 2. Zmienne środowiskowe
+# 2. Configure environment variables
 cp .env.example .env
-# Windows (PowerShell): Copy-Item .env.example .env
-# opcjonalnie ustaw własny AUTH_SECRET (np. openssl rand -base64 32)
+# PowerShell: Copy-Item .env.example .env
 
-# 3. Baza PostgreSQL
+# 3. Start PostgreSQL
 docker compose up -d
 
-# 4. Migracje i dane przykładowe
+# 4. Run Prisma migrations & seed sample data
 npx prisma migrate dev
 npm run db:seed
 
-# 5. Serwer developerski
+# 5. Start dev server
 npm run dev
 ```
 
-Aplikacja uruchamia się pod adresem [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000).
 
-Weryfikacja buildu produkcyjnego: `npm run build` → `npm start`.
+### Test Accounts
 
-### Reset bazy danych
-
-```bash
-npm run db:reset
-```
-
-Czyści bazę danych, wykonuje migracje od zera i zasila przykładowy katalog.
-
----
-
-## Konta testowe
-
-| Rola  | E-mail               | Hasło       |
+| Role  | Email                | Password    |
 |-------|----------------------|-------------|
 | ADMIN | `admin@flydes.local` | `Admin123!` |
 | USER  | `user@flydes.local`  | `User123!`  |
 
-Domyślne hasła seeda można nadpisać zmiennymi środowiskowymi `SEED_ADMIN_PASSWORD` oraz `SEED_USER_PASSWORD`.
+*(Default seed passwords can be overridden via `SEED_ADMIN_PASSWORD` and `SEED_USER_PASSWORD`.)*
 
----
+## Available Scripts
 
-## Funkcjonalności
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start Next.js development server |
+| `npm run build` | Generate Prisma Client and build production bundle |
+| `npm start` | Run production server |
+| `npm run lint` | Run ESLint checks |
+| `npm test` | Run unit & smoke tests (`tsx --test tests/*.test.ts`) |
+| `npm run db:migrate` | Apply development migrations (`prisma migrate dev`) |
+| `npm run db:seed` | Seed PostgreSQL with sample catalog & test accounts |
+| `npm run db:reset` | Reset database, re-run migrations, and re-seed |
 
-- **Konfigurator katalogowy:** wybór pojazdu krok po kroku (`marka → model → generacja → część`) z interaktywnym podglądem 3D (`@google/model-viewer`).
-- **Koszyk i zamówienia katalogowe:** koszyk w `localStorage`, składanie zamówienia po zalogowaniu z serwerową weryfikacją aktywności części (`archivedAt: null`) oraz aktualności cen z bazy danych.
-- **Wycena indywidualna (Custom):** kalkulator orientacyjnej ceny druku 3D, opcjonalny upload geometrii (`STL`, `OBJ`, `3MF`) z walidacją zawartości, zapisem poza `public/` (`uploads/custom/`) i autoryzowanym pobieraniem przez `/api/uploads/custom/[filename]`.
-- **Panel administratora:** zarządzanie katalogiem części (dodawanie, edycja, miękka archiwizacja, bezpieczne usuwanie), zmiana statusów zamówień oraz akceptacja/odrzucanie wycen custom z korektą ceny i notatką.
-- **Założenia i zakres MVP:** aplikacja korzysta z przykładowego katalogu (marki reprezentowane są przez inicjały i kolor UI bez znaków towarowych OEM, a grafiki w `/public/parts/` mają charakter poglądowy), nie zawiera integracji z zewnętrzną bramką płatności ani pełnego panelu CRUD dla hierarchii Brand / Model / Generation.
+## Application Routes
 
-### Atrybucja modeli 3D (CC-BY-4.0)
+| Route | Purpose |
+|-------|---------|
+| `/` | Landing page |
+| `/konfigurator` | Interactive 3D part configurator |
+| `/wycena` | Custom 3D print quote & file upload |
+| `/koszyk` | Shopping cart & checkout |
+| `/zamowienia`, `/zamowienie/[id]` | User order history & order details |
+| `/login`, `/register` | Authentication (`Credentials`) |
+| `/admin` | Admin panel (`ADMIN` role) |
 
-Przykładowe modele 3D w `/public/models/` pochodzą ze Sketchfab i są udostępniane na licencji [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/):
+## Deployment (Vercel + Neon)
 
-- `car_spoiler.glb` - *Car Spoiler*, autor: [Prasad_bhushi](https://sketchfab.com/Prasad_bhushi), źródło: [Sketchfab](https://sketchfab.com/3d-models/car-spoiler-98576be85f3f4867b16a31b20104da30), licencja: CC-BY-4.0
-- `drag_spoiler.glb` - *drag spoiler*, autor: [ベータBETAベータ](https://sketchfab.com/max_ar99), źródło: [Sketchfab](https://sketchfab.com/3d-models/drag-spoiler-d7a8d7d46c74435ea556c33afcecd9da), licencja: CC-BY-4.0
-- `universal_spoiler_1.glb` - *Universal Spoiler 1*, autor: [the_86_guy](https://sketchfab.com/the_86_guy), źródło: [Sketchfab](https://sketchfab.com/3d-models/universal-spoiler-1-5e118ed64b6b4cdb9b5a2931c06a0bc4), licencja: CC-BY-4.0
-
----
-
-## Ścieżki aplikacji
-
-| Ścieżka | Opis |
-|---------|------|
-| `/` | Strona startowa |
-| `/konfigurator` | Konfigurator katalogowy |
-| `/wycena` | Wycena indywidualna |
-| `/koszyk` | Koszyk i złożenie zamówienia |
-| `/zamowienie/[id]` | Szczegóły i potwierdzenie zamówienia |
-| `/zamowienia` | Lista zamówień zalogowanego użytkownika |
-| `/login`, `/register` | Logowanie i rejestracja (`Credentials`) |
-| `/admin` | Panel administratora (`ADMIN`) |
-
-**Role:** `USER` / `ADMIN` · **Statusy zamówień:** `NEW` → `IN_PROGRESS` → `COMPLETED` / `REJECTED`
-
----
-
-## Skrypty
-
-| Skrypt | Opis |
-|--------|------|
-| `npm run dev` | serwer developerski |
-| `npm run build` | generowanie klienta Prisma + build produkcyjny |
-| `npm start` | uruchomienie buildu produkcyjnego |
-| `npm run lint` | kontrola ESLint |
-| `npm test` | testy jednostkowe (`node:test` + `tsx`) |
-| `npm run db:migrate` | `prisma migrate dev` |
-| `npm run db:migrate:deploy` | `prisma migrate deploy` |
-| `npm run db:seed` | zasilenie bazy danymi przykładowymi |
-| `npm run db:reset` | reset migracji i ponowny seed |
-
----
-
-## Wdrożenie (Vercel + Neon)
-
-1. Utwórz projekt PostgreSQL w [Neon](https://neon.tech) i skopiuj connection string (`DATABASE_URL`).
-2. Wykonaj migracje i seed na docelowej bazie:
+1. Provision a PostgreSQL database on [Neon](https://neon.tech) and copy `DATABASE_URL`.
+2. Run production migrations and seed:
    ```bash
    export DATABASE_URL="postgresql://..."
-   export SEED_ADMIN_PASSWORD="silne-haslo-admina"
+   export SEED_ADMIN_PASSWORD="strong-admin-password"
    npx prisma migrate deploy
    npm run db:seed
    ```
-3. Zaimportuj repozytorium na [Vercel](https://vercel.com) i skonfiguruj zmienne środowiskowe:
-   - `DATABASE_URL`
-   - `AUTH_SECRET` (np. `openssl rand -base64 32`)
-   - `AUTH_URL` (docelowy adres aplikacji, np. `https://twoja-aplikacja.vercel.app`)
+3. Deploy to [Vercel](https://vercel.com) with `DATABASE_URL`, `AUTH_SECRET`, and `AUTH_URL`.
 
-> **Uwaga dotycząca środowiska serverless:** zapis przesłanych plików 3D korzysta lokalnie z katalogu `uploads/custom/`. W środowiskach z systemem plików tylko do odczytu (np. Vercel) upload załącznika zwraca komunikat o niedostępności zapisu, natomiast wycena bez pliku działa normalnie (pełny upload w chmurze wymaga podpięcia zewnętrznego object storage, np. Vercel Blob lub S3).
+> **Serverless storage note:** Local 3D file uploads write to `uploads/custom/`. On read-only serverless filesystems (e.g., Vercel), quotes without attachments work normally while file uploads return an unavailable-storage notice (cloud persistence requires an object store such as S3 or Vercel Blob).
 
----
+## 3D Model Attribution (CC-BY-4.0)
 
-## Licencja
+Sample 3D models in `/public/models/` are sourced from Sketchfab under [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/):
+- `car_spoiler.glb` — *Car Spoiler* by [Prasad_bhushi](https://sketchfab.com/Prasad_bhushi) ([Sketchfab](https://sketchfab.com/3d-models/car-spoiler-98576be85f3f4867b16a31b20104da30))
+- `drag_spoiler.glb` — *drag spoiler* by [ベータBETAベータ](https://sketchfab.com/max_ar99) ([Sketchfab](https://sketchfab.com/3d-models/drag-spoiler-d7a8d7d46c74435ea556c33afcecd9da))
+- `universal_spoiler_1.glb` — *Universal Spoiler 1* by [the_86_guy](https://sketchfab.com/the_86_guy) ([Sketchfab](https://sketchfab.com/3d-models/universal-spoiler-1-5e118ed64b6b4cdb9b5a2931c06a0bc4))
 
-Kod źródłowy projektu jest udostępniany na licencji [MIT](LICENSE). Przykładowe modele 3D w `/public/models/` podlegają licencji CC-BY-4.0 (atrybucja powyżej).
+## License
+
+Source code is licensed under the [MIT License](LICENSE). Sample 3D models in `/public/models/` are licensed under CC-BY-4.0.
